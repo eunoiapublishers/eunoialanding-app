@@ -1,0 +1,106 @@
+---
+// src/pages/index.astro
+import LayoutPrincipal from '../layouts/LayoutPrincipal.astro';
+import FormularioLead from '../components/FormularioLead.astro';
+import CardPost from '../components/CardPost.astro';
+import { getCollection } from 'astro:content';
+
+// Obtener posts de la colección estática de Astro y ordenarlos por fecha más reciente
+const posts = await getCollection('posts');
+const postsOrdenados = posts.sort((a, b) => b.data.pubDate.valueOf() - a.data.pubDate.valueOf());
+---
+
+<LayoutPrincipal title="Apoyo Pedagógico para la Neurodivergencia">
+  
+  <!-- 2. Sección Principal (Hero Section) - Captación de Leads -->
+  <section class="relative bg-gradient-to-b from-white to-[#F8FAFC] py-20 px-4 sm:px-6 lg:px-8 border-b border-slate-100">
+    <div class="max-w-4xl mx-auto text-center">
+      
+      <!-- Subtítulo pequeño de categoría -->
+      <span class="text-sky-600 font-bold tracking-wider uppercase text-sm mb-4 inline-block">
+        Recursos Didácticos y Apoyo Pedagógico
+      </span>
+      
+      <!-- Título Principal (H1) -->
+      <h1 class="text-4xl sm:text-5xl font-extrabold text-slate-900 tracking-tight leading-none mb-6 max-w-3xl mx-auto">
+        Materiales Estructurados para el Aprendizaje de Personas <span class="text-sky-600">Neurodivergentes</span>
+      </h1>
+      
+      <!-- Texto de soporte (Párrafo) -->
+      <p class="text-lg text-slate-600 mb-10 max-w-2xl mx-auto leading-relaxed">
+        Descarga inmediata de recursos imprimibles gratuitos diseñados específicamente para el autismo, TDAH y el procesamiento sensorial en el aula y el hogar. Únete a nuestra red de más de 10,000 educadores y terapeutas en Latinoamérica.
+      </p>
+      
+      <!-- Caja con Formulario de Captación Integrado -->
+      <div class="bg-white p-8 rounded-2xl shadow-xl border border-slate-100 max-w-md mx-auto transform transition-all duration-300 hover:shadow-2xl">
+        <div class="mb-5 text-center">
+          <span class="bg-amber-50 text-amber-700 text-xs px-2.5 py-1 rounded-full font-bold inline-block mb-2">🎁 Recurso Gratuito Semanal</span>
+          <h2 class="text-lg font-bold text-slate-800">Boletín Pedagógico Eunoia</h2>
+          <p class="text-xs text-slate-500 mt-1">Recibe guías de intervención, adaptaciones y un cupón de 15% de descuento en Teachers Pay Teachers.</p>
+        </div>
+        
+        <!-- Componente FormularioLead de captación de suscriptores -->
+        <FormularioLead />
+      </div>
+      
+    </div>
+  </section>
+
+  <!-- 3. Sección de Ventajas / Propuesta -->
+  <section class="py-16 bg-white border-b border-slate-100">
+    <div class="max-w-5xl mx-auto px-4 grid grid-cols-1 md:grid-cols-3 gap-8 text-center sm:text-left">
+      <div class="p-4">
+        <div class="w-10 h-10 bg-sky-50 text-sky-600 rounded-lg flex items-center justify-center font-bold text-lg mb-4 mx-auto sm:mx-0">01</div>
+        <h3 class="font-bold text-slate-900 text-base mb-2">Diseñado por Especialistas</h3>
+        <p class="text-sm text-slate-500 leading-relaxed">Cada recurso, pictograma y guía de intervención es creado y validado por terapeutas con maestría en neurodiversidad.</p>
+      </div>
+      <div class="p-4">
+        <div class="w-10 h-10 bg-sky-50 text-sky-600 rounded-lg flex items-center justify-center font-bold text-lg mb-4 mx-auto sm:mx-0">02</div>
+        <h3 class="font-bold text-slate-900 text-base mb-2">Formato Listo para Imprimir</h3>
+        <p class="text-sm text-slate-500 leading-relaxed">Descarga packs de alta definición, listos para imprimir, recortar, plastificar y aplicar inmediatamente con tus alumnos en el salón.</p>
+      </div>
+      <div class="p-4">
+        <div class="w-10 h-10 bg-sky-50 text-sky-600 rounded-lg flex items-center justify-center font-bold text-lg mb-4 mx-auto sm:mx-0">03</div>
+        <h3 class="font-bold text-slate-900 text-base mb-2">Costo Cero / Soporte</h3>
+        <p class="text-xs text-sky-700 bg-sky-50 px-2 py-1 rounded inline-block font-semibold mb-2">Ecosistema Abierto</p>
+        <p class="text-sm text-slate-500 leading-relaxed">Creemos firmemente en democratizar el conocimiento pedagógico. Accede a nuestros mejores artículos sin barreras de pago.</p>
+      </div>
+    </div>
+  </section>
+
+  <!-- 4. Sección del Blog Integrado (Feed de Posts Recientes) -->
+  <section id="blog" class="bg-[#F8FAFC] py-16">
+    <div class="max-w-6xl mx-auto px-4">
+      
+      <div class="text-center mb-12">
+        <h2 class="text-3xl font-extrabold text-slate-900 tracking-tight">
+          Últimos Artículos y Estrategias
+        </h2>
+        <p class="text-slate-500 text-sm mt-2 max-w-lg mx-auto">
+          Explora metodologías validadas científicamente para el desarrollo integral en el aula u hogar.
+        </p>
+      </div>
+      
+      <!-- Cuadrícula de posts dinámicos -->
+      {postsOrdenados.length > 0 ? (
+        <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
+          {postsOrdenados.map((post) => (
+            <CardPost 
+              title={post.data.title}
+              description={post.data.description}
+              pubDate={post.data.pubDate}
+              slug={post.slug}
+              tag={post.data.tag}
+            />
+          ))}
+        </div>
+      ) : (
+        <div class="text-center py-12 bg-white rounded-xl border border-slate-100 max-w-md mx-auto p-6">
+          <p class="text-slate-400 font-medium">Próximamente publicaremos artículos.</p>
+        </div>
+      )}
+      
+    </div>
+  </section>
+
+</LayoutPrincipal>

@@ -1,0 +1,117 @@
+---
+// src/components/FormularioLead.astro
+---
+
+<div class="w-full max-w-md mx-auto" id="lead-container">
+  <form id="formulario-lead" class="flex flex-col text-left">
+    <div class="mb-4">
+      <label for="first_name" class="block text-sm font-semibold text-slate-700 mb-1">Nombre</label>
+      <input 
+        type="text" 
+        id="first_name" 
+        name="first_name" 
+        required 
+        placeholder="Tu nombre aquí" 
+        class="w-full px-4 py-3 border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-sky-500 bg-slate-50 text-slate-900 transition-all duration-150"
+      />
+    </div>
+
+    <div class="mb-5">
+      <label for="email" class="block text-sm font-semibold text-slate-700 mb-1">Correo Electrónico</label>
+      <input 
+        type="email" 
+        id="email" 
+        name="email" 
+        required 
+        placeholder="ejemplo@correo.com" 
+        class="w-full px-4 py-3 border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-sky-500 bg-slate-50 text-slate-900 transition-all duration-150"
+      />
+    </div>
+
+    <button 
+      type="submit" 
+      id="btn-submit" 
+      class="w-full bg-sky-600 hover:bg-sky-700 text-white font-semibold py-3 px-4 rounded-lg transition-colors duration-200 shadow-md shadow-sky-100 flex items-center justify-center cursor-pointer"
+    >
+      <span id="btn-text">Unirse a la Newsletter y Descargar</span>
+      <span id="btn-spinner" class="hidden ml-2">
+        <svg class="animate-spin h-5 w-5 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+          <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+          <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+        </svg>
+      </span>
+    </button>
+  </form>
+
+  <!-- Bloque de Éxito Oculto Inicialmente -->
+  <div id="mensaje-exito" class="hidden bg-emerald-50 text-emerald-800 p-6 rounded-xl border border-emerald-100 text-center transition-all duration-300">
+    <div class="w-12 h-12 bg-emerald-100 text-emerald-600 rounded-full flex items-center justify-center mx-auto mb-3">
+      <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+        <path stroke-linecap="round" stroke-linejoin="round" d="M5 13l4 4L19 7" />
+      </svg>
+    </div>
+    <h3 class="font-bold text-lg mb-1 text-emerald-900">¡Te has unido con éxito!</h3>
+    <p class="text-sm">Hemos enviado un correo de bienvenida. Revisa tu bandeja de entrada y tu carpeta de spam para descargar tus recursos pedagógicos gratuitos.</p>
+  </div>
+
+  <!-- Mensaje de Error Oculto -->
+  <div id="mensaje-error" class="hidden mt-3 bg-rose-50 text-rose-800 p-4 rounded-lg border border-rose-100 text-sm text-center">
+    Ocurrió un error. Por favor intenta de nuevo o contáctanos a soporte@eunoialearning.com.
+  </div>
+</div>
+
+<script>
+  const form = document.getElementById('formulario-lead') as HTMLFormElement;
+  const btnSubmit = document.getElementById('btn-submit') as HTMLButtonElement;
+  const btnText = document.getElementById('btn-text') as HTMLSpanElement;
+  const btnSpinner = document.getElementById('btn-spinner') as HTMLSpanElement;
+  const mensajeExito = document.getElementById('mensaje-exito') as HTMLDivElement;
+  const mensajeError = document.getElementById('mensaje-error') as HTMLDivElement;
+
+  if (form) {
+    form.addEventListener('submit', async (e) => {
+      e.preventDefault();
+      
+      // Bloquear elementos
+      btnSubmit.disabled = true;
+      btnSubmit.classList.add('opacity-70', 'cursor-not-allowed');
+      btnText.textContent = "Cargando...";
+      btnSpinner.classList.remove('hidden');
+      mensajeError.classList.add('hidden');
+
+      const formData = new FormData(form);
+      const data = {
+        first_name: formData.get('first_name'),
+        email: formData.get('email'),
+        tags: ["Lead-TpT"]
+      };
+
+      try {
+        // Enviar la suscripción a nuestro Endpoint API
+        const response = await fetch('/api/leads', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json'
+          },
+          body: JSON.stringify(data)
+        });
+
+        if (response.ok) {
+          // Éxito: Ocultar el formulario y desplegar mensaje elegante de éxito
+          form.classList.add('hidden');
+          mensajeExito.classList.remove('hidden');
+        } else {
+          throw new Error('Servidor respondió con error');
+        }
+      } catch (err) {
+        console.error('Error suscribiendo al lead:', err);
+        // Mostrar error, revertir deshabilitación de botón
+        mensajeError.classList.remove('hidden');
+        btnSubmit.disabled = false;
+        btnSubmit.classList.remove('opacity-70', 'cursor-not-allowed');
+        btnText.textContent = "Unirse a la Newsletter y Descargar";
+        btnSpinner.classList.add('hidden');
+      }
+    });
+  }
+</script>

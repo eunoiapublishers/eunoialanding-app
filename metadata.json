@@ -1,0 +1,6 @@
+{
+  "name": "Eunoia Learning Marketing Portal",
+  "description": "Ecosistema digital de marketing automatizado para Eunoia Learning LLC, que incluye landing page de captación, blog, y script de publicación y newsletter por Resend API.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}

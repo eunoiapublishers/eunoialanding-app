@@ -33,6 +33,36 @@ export default function App() {
   // Navigation: Landing vs admin panel
   const [view, setView] = useState<'landing' | 'admin'>('landing');
 
+  // Admin menu visibility state (completely hidden from regular visitors by default)
+  const [showAdminMenu, setShowAdminMenu] = useState(() => {
+    return localStorage.getItem('eunoia_show_admin_menu') === 'true' || 
+           sessionStorage.getItem('eunoia_admin_unlocked') === 'true';
+  });
+
+  // Check URL parameters for secret admin mode toggle (?admin=true) on mount
+  useEffect(() => {
+    const queryParams = new URLSearchParams(window.location.search);
+    if (queryParams.get('admin') === 'true') {
+      setShowAdminMenu(true);
+      localStorage.setItem('eunoia_show_admin_menu', 'true');
+      // Clean up URL parameter cleanly for aesthetics
+      window.history.replaceState({}, document.title, window.location.pathname);
+    }
+  }, []);
+
+  // Backdoor trigger: Double clicking on the footer copyright toggles the menu item
+  const handleFooterDoubleClick = () => {
+    setShowAdminMenu(prev => {
+      const next = !prev;
+      if (next) {
+        localStorage.setItem('eunoia_show_admin_menu', 'true');
+      } else {
+        localStorage.removeItem('eunoia_show_admin_menu');
+      }
+      return next;
+    });
+  };
+
   // Admin authentication (session-based for safety)
   const [isAdminUnlocked, setIsAdminUnlocked] = useState(() => {
     return sessionStorage.getItem('eunoia_admin_unlocked') === 'true';
@@ -55,7 +85,7 @@ export default function App() {
       sessionStorage.setItem('eunoia_admin_unlocked', 'true');
       setAuthError('');
     } else {
-      setAuthError('Invalid username or password. Check credentials.');
+      setAuthError('Invalid username or password. Please verify.');
     }
   };
 
@@ -64,6 +94,7 @@ export default function App() {
     sessionStorage.removeItem('eunoia_admin_unlocked');
     setAdminUsername('');
     setAdminPassword('');
+    setView('landing'); // Safely redirect back to landing view upon logout
   };
 
   // Lead capture states
@@ -242,24 +273,26 @@ Follow these simple, helpful steps today:
             </div>
           </div>
 
-          <nav className="flex items-center gap-1.5 bg-brand-cream p-1 rounded-xl border border-brand-sage-light">
-            <button 
-              id="nav-landing"
-              onClick={() => setView('landing')}
-              className={`px-3 py-1.5 text-xs font-bold rounded-lg transition-all cursor-pointer flex items-center gap-1 ${view === 'landing' ? 'bg-white text-brand-pine shadow-2xs font-bold' : 'text-brand-charcoal hover:bg-white/50'}`}
-            >
-              <BookOpen className="w-3.5 h-3.5" />
-              Resource Hub
-            </button>
-            <button 
-              id="nav-admin"
-              onClick={() => setView('admin')}
-              className={`px-3 py-1.5 text-xs font-bold rounded-lg transition-all cursor-pointer flex items-center gap-1.5 ${view === 'admin' ? 'bg-white text-brand-pine shadow-2xs font-bold' : 'text-brand-charcoal hover:bg-white/50'}`}
-            >
-              {isAdminUnlocked ? <Unlock className="w-3.5 h-3.5 text-brand-pine" /> : <Lock className="w-3.5 h-3.5 text-brand-sage" />}
-              Admin Console
-            </button>
-          </nav>
+          {showAdminMenu && (
+            <nav className="flex items-center gap-1.5 bg-brand-cream p-1 rounded-xl border border-brand-sage-light">
+              <button 
+                id="nav-landing"
+                onClick={() => setView('landing')}
+                className={`px-3 py-1.5 text-xs font-bold rounded-lg transition-all cursor-pointer flex items-center gap-1 ${view === 'landing' ? 'bg-white text-brand-pine shadow-2xs font-bold' : 'text-brand-charcoal hover:bg-white/50'}`}
+              >
+                <BookOpen className="w-3.5 h-3.5" />
+                Resource Hub
+              </button>
+              <button 
+                id="nav-admin"
+                onClick={() => setView('admin')}
+                className={`px-3 py-1.5 text-xs font-bold rounded-lg transition-all cursor-pointer flex items-center gap-1.5 ${view === 'admin' ? 'bg-white text-brand-pine shadow-2xs font-bold' : 'text-brand-charcoal hover:bg-white/50'}`}
+              >
+                {isAdminUnlocked ? <Unlock className="w-3.5 h-3.5 text-brand-pine" /> : <Lock className="w-3.5 h-3.5 text-brand-sage" />}
+                Admin Console
+              </button>
+            </nav>
+          )}
 
         </div>
       </header>
@@ -476,10 +509,6 @@ Follow these simple, helpful steps today:
                     <span>Unlock Dashboard</span>
                   </button>
                 </form>
-
-                <div className="pt-2.5 text-[10px] text-brand-sage leading-normal text-center bg-brand-cream/40 py-2 rounded-lg border border-brand-sage-light/30">
-                  <p>🔑 Default Credentials: <span className="font-bold">admin</span> / <span className="font-bold">eunoia2026</span></p>
-                </div>
               </div>
             </div>
           ) : (
@@ -645,7 +674,12 @@ Follow these simple, helpful steps today:
 
       {/* FOOTER */}
       <footer className="border-t border-brand-sage-light bg-white py-4 px-4 text-center">
-        <p className="text-[11px] text-brand-sage font-medium tracking-wide">
+        <p 
+          id="footer-note"
+          onDoubleClick={handleFooterDoubleClick}
+          className="text-[11px] text-brand-sage font-medium tracking-wide select-none cursor-pointer duration-200 active:opacity-40"
+          title="Double click to toggle secure manager panel link"
+        >
           &copy; 2026 Eunoia Learning LLC. Thoughtfully designed to be simple, clean, and accessible.
         </p>
       </footer>

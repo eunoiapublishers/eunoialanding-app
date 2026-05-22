@@ -14,7 +14,9 @@ import {
   ArrowRight,
   RefreshCw,
   Sparkles,
-  Undo2
+  Undo2,
+  Lock,
+  Unlock
 } from 'lucide-react';
 
 // Import local brand assets for cohesive presentation
@@ -30,6 +32,39 @@ interface Lead {
 export default function App() {
   // Navigation: Landing vs admin panel
   const [view, setView] = useState<'landing' | 'admin'>('landing');
+
+  // Admin authentication (session-based for safety)
+  const [isAdminUnlocked, setIsAdminUnlocked] = useState(() => {
+    return sessionStorage.getItem('eunoia_admin_unlocked') === 'true';
+  });
+  const [adminUsername, setAdminUsername] = useState('');
+  const [adminPassword, setAdminPassword] = useState('');
+  const [authError, setAuthError] = useState('');
+
+  // Handle Admin Authorization
+  const handleAdminLogin = (e: React.FormEvent) => {
+    e.preventDefault();
+    setAuthError('');
+    
+    // Default safe credentials
+    const targetUser = 'admin';
+    const targetPass = 'eunoia2026';
+    
+    if (adminUsername.trim().toLowerCase() === targetUser && adminPassword === targetPass) {
+      setIsAdminUnlocked(true);
+      sessionStorage.setItem('eunoia_admin_unlocked', 'true');
+      setAuthError('');
+    } else {
+      setAuthError('Invalid username or password. Check credentials.');
+    }
+  };
+
+  const handleAdminLogout = () => {
+    setIsAdminUnlocked(false);
+    sessionStorage.removeItem('eunoia_admin_unlocked');
+    setAdminUsername('');
+    setAdminPassword('');
+  };
 
   // Lead capture states
   const [firstName, setFirstName] = useState('');
@@ -219,9 +254,9 @@ Follow these simple, helpful steps today:
             <button 
               id="nav-admin"
               onClick={() => setView('admin')}
-              className={`px-3 py-1.5 text-xs font-bold rounded-lg transition-all cursor-pointer flex items-center gap-1 ${view === 'admin' ? 'bg-white text-brand-pine shadow-2xs font-bold' : 'text-brand-charcoal hover:bg-white/50'}`}
+              className={`px-3 py-1.5 text-xs font-bold rounded-lg transition-all cursor-pointer flex items-center gap-1.5 ${view === 'admin' ? 'bg-white text-brand-pine shadow-2xs font-bold' : 'text-brand-charcoal hover:bg-white/50'}`}
             >
-              <Settings className="w-3.5 h-3.5" />
+              {isAdminUnlocked ? <Unlock className="w-3.5 h-3.5 text-brand-pine" /> : <Lock className="w-3.5 h-3.5 text-brand-sage" />}
               Admin Console
             </button>
           </nav>
@@ -381,6 +416,72 @@ Follow these simple, helpful steps today:
                 )}
               </div>
             </div>
+          ) : !isAdminUnlocked ? (
+            /* ================= SECURE ADMIN LOGIN SCREEN ================= */
+            <div className="space-y-6 text-left animate-fade-in max-w-sm w-full mx-auto">
+              <div className="bg-white border-2 border-brand-sage-light/60 shadow-[0_4px_24px_rgba(44,78,68,0.04)] rounded-2xl p-6 sm:p-8 space-y-6 relative overflow-hidden">
+                <div className="absolute top-0 left-0 right-0 h-1 bg-brand-pine"></div>
+                
+                <div className="flex flex-col items-center text-center space-y-2">
+                  <div className="w-10 h-10 bg-brand-cream text-brand-pine rounded-full flex items-center justify-center border border-brand-sage-light shadow-3xs">
+                    <Lock className="w-4.5 h-4.5" />
+                  </div>
+                  <div>
+                    <h2 className="font-display font-extrabold text-base text-brand-charcoal">Admin Access Required</h2>
+                    <p className="text-[11px] text-brand-charcoal/70">Please authenticate to manage subscribers & dispatch newsletters.</p>
+                  </div>
+                </div>
+
+                <form onSubmit={handleAdminLogin} className="space-y-3.5">
+                  <div>
+                    <label className="block text-[9px] font-mono font-bold text-brand-charcoal/70 uppercase tracking-widest mb-1">
+                      Username
+                    </label>
+                    <input 
+                      type="text"
+                      required
+                      value={adminUsername}
+                      onChange={(e) => setAdminUsername(e.target.value)}
+                      placeholder="e.g., admin"
+                      className="w-full px-3 py-2 border border-brand-sage-light rounded-lg text-xs bg-brand-cream/30 focus:bg-white focus:outline-none focus:ring-1 focus:ring-brand-pine"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="block text-[9px] font-mono font-bold text-brand-charcoal/70 uppercase tracking-widest mb-1">
+                      Password
+                    </label>
+                    <input 
+                      type="password"
+                      required
+                      value={adminPassword}
+                      onChange={(e) => setAdminPassword(e.target.value)}
+                      placeholder="••••••••"
+                      className="w-full px-3 py-2 border border-brand-sage-light rounded-lg text-xs bg-brand-cream/30 focus:bg-white focus:outline-none focus:ring-1 focus:ring-brand-pine"
+                    />
+                  </div>
+
+                  {authError && (
+                    <div className="p-2.5 bg-red-50 text-red-900 rounded-lg text-[10px] flex items-center gap-1.5 border border-red-200">
+                      <AlertCircle className="w-3.5 h-3.5 text-red-600 shrink-0" />
+                      <span>{authError}</span>
+                    </div>
+                  )}
+
+                  <button
+                    type="submit"
+                    className="w-full bg-brand-pine hover:bg-brand-pine/90 text-brand-cream font-display font-semibold py-2 px-3 rounded-lg text-xs tracking-wider uppercase transition-colors flex items-center justify-center gap-1.5 cursor-pointer shadow-3xs"
+                  >
+                    <Unlock className="w-3.5 h-3.5 shrink-0" />
+                    <span>Unlock Dashboard</span>
+                  </button>
+                </form>
+
+                <div className="pt-2.5 text-[10px] text-brand-sage leading-normal text-center bg-brand-cream/40 py-2 rounded-lg border border-brand-sage-light/30">
+                  <p>🔑 Default Credentials: <span className="font-bold">admin</span> / <span className="font-bold">eunoia2026</span></p>
+                </div>
+              </div>
+            </div>
           ) : (
             /* ================= VISTA DE ADMINISTRACIÓN Y SCRIPT EN ESPAÑOL ================= */
             <div className="space-y-6 text-left">
@@ -388,11 +489,22 @@ Follow these simple, helpful steps today:
                 
                 <div className="border-b border-brand-sage-light pb-3.5 flex items-center justify-between">
                   <div>
-                    <h2 className="font-display font-extrabold text-base sm:text-lg text-brand-charcoal">Newsletter Dispatch Hub</h2>
+                    <h2 className="font-display font-extrabold text-base sm:text-lg text-brand-charcoal flex items-center gap-1.5">
+                      <span>Newsletter Dispatch Hub</span>
+                      <span className="bg-brand-sage-light text-brand-pine text-[9px] font-mono px-2 py-0.5 rounded uppercase font-bold tracking-wider">Secure Session</span>
+                    </h2>
                     <p className="text-xs text-brand-charcoal/60">Manage your subscribers and dispatch campaigns via Resend API.</p>
                   </div>
-                  <div className="bg-brand-sage text-white px-2.5 py-1 rounded-xl text-xs font-bold font-mono">
-                    {leads.length} leads
+                  <div className="flex items-center gap-2">
+                    <button
+                      onClick={handleAdminLogout}
+                      className="text-[10px] text-red-700 hover:text-white border border-red-200 hover:bg-red-700 px-2 py-1 rounded-md transition-all font-bold cursor-pointer"
+                    >
+                      Log Out
+                    </button>
+                    <div className="bg-brand-sage text-white px-2.5 py-1 rounded-xl text-xs font-bold font-mono shadow-3xs">
+                      {leads.length} leads
+                    </div>
                   </div>
                 </div>
 

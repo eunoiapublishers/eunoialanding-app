@@ -16,7 +16,8 @@ import {
   Sparkles,
   Undo2,
   Lock,
-  Unlock
+  Unlock,
+  Trash2
 } from 'lucide-react';
 
 // Import local brand assets for cohesive presentation
@@ -146,9 +147,15 @@ Follow these simple, helpful steps today:
       if (res.ok) {
         const data = await res.json();
         setLeads(data);
+        localStorage.setItem('eunoia_offline_leads', JSON.stringify(data));
+      } else {
+        const local = localStorage.getItem('eunoia_offline_leads');
+        setLeads(local ? JSON.parse(local) : []);
       }
     } catch (err) {
-      console.warn('Error fetching leads:', err);
+      console.warn('Error fetching leads, falling back to local storage:', err);
+      const local = localStorage.getItem('eunoia_offline_leads');
+      setLeads(local ? JSON.parse(local) : []);
     } finally {
       setIsLoadingLeads(false);
     }
@@ -166,15 +173,18 @@ Follow these simple, helpful steps today:
     setIsSubmitting(true);
     setFormError('');
 
+    const newLead: Lead = {
+      first_name: firstName.trim(),
+      email: email.trim(),
+      tags: ['Lead-TpT'],
+      date: new Date().toISOString().split('T')[0]
+    };
+
     try {
       const response = await fetch(getEndpoint('/api/leads'), {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          first_name: firstName.trim(),
-          email: email.trim(),
-          tags: ['Lead-TpT']
-        })
+        body: JSON.stringify(newLead)
       });
 
       if (response.ok) {
@@ -182,13 +192,54 @@ Follow these simple, helpful steps today:
         setFormError('');
         fetchLeads();
       } else {
-        const errData = await response.json();
-        setFormError(errData.error || 'An error occurred while processing your registration.');
+        throw new Error('Server returned an error');
       }
     } catch (err) {
-      setFormError('Could not connect to the server. Please verify the application backend API is running.');
+      console.warn('Network error, saving securely to localStorage:', err);
+      // Fallback local storage sync
+      const local = localStorage.getItem('eunoia_offline_leads');
+      const currentLeads: Lead[] = local ? JSON.parse(local) : [];
+      const alreadyExists = currentLeads.find(l => l.email.toLowerCase() === email.trim().toLowerCase());
+      
+      if (!alreadyExists) {
+        currentLeads.push(newLead);
+        localStorage.setItem('eunoia_offline_leads', JSON.stringify(currentLeads));
+      }
+      
+      setFormSuccess(true);
+      setFormError('');
+      setLeads(currentLeads);
     } finally {
       setIsSubmitting(false);
+    }
+  };
+
+  // Delete live lead from backend or offline localStorage
+  const handleDeleteLead = async (emailToDelete: string) => {
+    if (!window.confirm(`¿Estás seguro de que deseas eliminar a ${emailToDelete}?`)) return;
+    
+    // Always attempt server deletion first
+    try {
+      const response = await fetch(getEndpoint('/api/leads/delete'), {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email: emailToDelete })
+      });
+      if (response.ok) {
+        fetchLeads();
+        return;
+      }
+    } catch (err) {
+      console.warn('Failed to delete on server, falling back to local action');
+    }
+
+    // Fallback/Local storage sync
+    const local = localStorage.getItem('eunoia_offline_leads');
+    if (local) {
+      const currentLeads: Lead[] = JSON.parse(local);
+      const filtered = currentLeads.filter(l => l.email.toLowerCase() !== emailToDelete.toLowerCase());
+      localStorage.setItem('eunoia_offline_leads', JSON.stringify(filtered));
+      setLeads(filtered);
     }
   };
 
@@ -569,12 +620,30 @@ Follow these simple, helpful steps today:
                       </div>
 
                       {previewMode === 'preview' ? (
-                        <div 
-                          className="w-full h-44 p-3 border border-brand-sage-light rounded-lg bg-brand-cream/30 text-xs overflow-y-auto font-sans leading-relaxed text-left"
-                          dangerouslySetInnerHTML={{ __html: renderMarkdown(markdown) }}
-                        />
+                        <div id="newsletter-email-preview" className="w-full h-44 border border-brand-sage-light rounded-lg overflow-y-auto bg-[#FDFBF7] p-3 text-left select-none text-[11px]">
+                          <div className="bg-white border border-gray-200 rounded-lg shadow-3xs overflow-hidden max-w-[380px] mx-auto">
+                            {/* Header of simulated email */}
+                            <div className="bg-brand-pine text-brand-cream p-2 text-center">
+                              <span className="font-display font-medium text-[11px] tracking-wide">Eunoia Learning</span>
+                            </div>
+                            {/* Inner body of simulated email */}
+                            <div className="p-3 space-y-2 font-sans text-brand-charcoal leading-normal bg-white">
+                              <p className="font-bold text-brand-charcoal">Hola, {'{'}Nombre{'}'}:</p>
+                              <div 
+                                className="space-y-1 text-[10px] text-slate-700"
+                                dangerouslySetInnerHTML={{ __html: renderMarkdown(markdown) }}
+                              />
+                            </div>
+                            {/* Footer of simulated email */}
+                            <div className="bg-slate-50 border-t border-slate-100 p-2 text-center text-[8px] text-slate-400 space-y-0.5">
+                              <p>&copy; 2026 Eunoia Learning LLC. Todos los derechos reservados.</p>
+                              <p className="underline cursor-pointer hover:text-brand-pine">Cancelar suscripción</p>
+                            </div>
+                          </div>
+                        </div>
                       ) : (
                         <textarea 
+                          id="markdown-editor"
                           value={markdown}
                           onChange={(e) => setMarkdown(e.target.value)}
                           placeholder="Write your newsletter content in Markdown format..."
@@ -585,6 +654,7 @@ Follow these simple, helpful steps today:
                     </div>
 
                     <button
+                      id="btn-send-newsletter"
                       onClick={handleSendNewsletter}
                       disabled={isSending || leads.length === 0}
                       className="w-full bg-brand-pine hover:bg-brand-pine/90 text-brand-cream font-display font-bold py-2 px-3 rounded-lg text-xs tracking-wider uppercase transition-colors flex items-center justify-center gap-1.5 cursor-pointer disabled:opacity-50"
@@ -600,6 +670,7 @@ Follow these simple, helpful steps today:
                       <div className="flex justify-between items-center">
                         <span className="block text-[10px] font-mono font-bold text-brand-charcoal/70 uppercase tracking-widest">Registered Subscribers</span>
                         <button 
+                          id="btn-sync-leads"
                           onClick={fetchLeads} 
                           className="text-[10px] font-mono font-bold hover:text-brand-pine flex items-center gap-1"
                           title="Sync active database"
@@ -608,16 +679,25 @@ Follow these simple, helpful steps today:
                         </button>
                       </div>
                       
-                      <div className="border border-brand-sage-light rounded-lg p-2 max-h-28 overflow-y-auto bg-brand-cream/30 space-y-1 block">
+                      <div id="subscribers-list-box" className="border border-brand-sage-light rounded-lg p-2 max-h-28 overflow-y-auto bg-brand-cream/30 space-y-1 block">
                         {isLoadingLeads ? (
                           <div className="text-[10px] text-brand-sage italic p-1">Loading...</div>
                         ) : leads.length === 0 ? (
                           <div className="text-[10px] text-brand-sage italic p-1">No subscribers registered yet.</div>
                         ) : (
                           leads.map((l, index) => (
-                            <div key={index} className="text-[10px] text-brand-charcoal border-b border-brand-sage-light/45 pb-1 flex justify-between gap-1 p-0.5">
-                              <span className="font-bold truncate">{l.first_name}</span>
-                              <span className="text-brand-sage font-mono shrink-0">{l.email}</span>
+                            <div key={index} className="text-[10px] text-brand-charcoal border-b border-brand-sage-light/45 pb-1 flex justify-between items-center gap-1.5 p-0.5">
+                              <div className="flex flex-col truncate text-left">
+                                <span className="font-bold truncate text-slate-800">{l.first_name}</span>
+                                <span className="text-brand-sage font-mono shrink-0 text-[8px] truncate">{l.email}</span>
+                              </div>
+                              <button
+                                onClick={() => handleDeleteLead(l.email)}
+                                className="text-red-600 hover:text-red-900 duration-150 p-1 rounded hover:bg-red-50 cursor-pointer"
+                                title="Eliminar suscriptor"
+                              >
+                                <Trash2 className="w-3 h-3 shrink-0" />
+                              </button>
                             </div>
                           ))
                         )}

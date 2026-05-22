@@ -39,10 +39,7 @@ interface Lead {
 }
 
 // Initial demo data
-const INTIAL_SEED_LEADS: Lead[] = [
-  { first_name: "Elena Ruiz", email: "elena@educacontrol.org", tags: ["Lead-TpT"], date: "2026-05-20" },
-  { first_name: "Pedro Morales", email: "pmorales@terapiasensorial.com", tags: ["Lead-TpT"], date: "2026-05-21" },
-];
+const INTIAL_SEED_LEADS: Lead[] = [];
 
 function readStoredLeads(): Lead[] {
   try {
@@ -160,6 +157,22 @@ app.post('/api/leads', async (req, res) => {
   }
 
   res.json({ success: true, lead: newLead });
+});
+
+// 2b. Delete Lead
+app.post('/api/leads/delete', (req, res) => {
+  const { email } = req.body;
+  if (!email) {
+    return res.status(400).json({ error: 'El correo electrónico es obligatorio.' });
+  }
+  let leads = readStoredLeads();
+  const index = leads.findIndex(l => l.email.toLowerCase() === email.toLowerCase());
+  if (index !== -1) {
+    leads.splice(index, 1);
+    writeStoredLeads(leads);
+    return res.json({ success: true, message: 'Suscriptor eliminado con éxito.' });
+  }
+  return res.status(404).json({ error: 'Suscriptor no encontrado.' });
 });
 
 // 3. Send Newsletter to captured leads

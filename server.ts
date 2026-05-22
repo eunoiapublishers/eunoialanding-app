@@ -64,6 +64,33 @@ function writeStoredLeads(list: Lead[]) {
   }
 }
 
+// Persistent configuration for Resend settings
+const CONFIG_FILE = path.join(__dirname, 'config.json');
+
+interface AppConfig {
+  resendApiKey?: string;
+  senderEmail?: string;
+}
+
+function readConfig(): AppConfig {
+  try {
+    if (fs.existsSync(CONFIG_FILE)) {
+      return JSON.parse(fs.readFileSync(CONFIG_FILE, 'utf-8'));
+    }
+  } catch (err) {
+    console.error('Error reading config.json:', err);
+  }
+  return {};
+}
+
+function writeConfig(cfg: AppConfig) {
+  try {
+    fs.writeFileSync(CONFIG_FILE, JSON.stringify(cfg, null, 2), 'utf-8');
+  } catch (err) {
+    console.error('Error writing config.json:', err);
+  }
+}
+
 // Simple Helper to convert basic Markdown to simple HTML
 function mdToHtml(md: string): string {
   return md
@@ -131,7 +158,10 @@ app.post('/api/leads', async (req, res) => {
   writeStoredLeads(leads);
 
   // Send an instant welcome email if Resend Key is configured
-  const resendKey = process.env.RESEND_API_KEY;
+  const config = readConfig();
+  const resendKey = config.resendApiKey || process.env.RESEND_API_KEY;
+  const senderEmail = config.senderEmail || 'Eunoia Learning <onboarding@resend.dev>';
+
   if (resendKey) {
     try {
       const { Resend } = resendPkg as any;
@@ -146,7 +176,7 @@ app.post('/api/leads', async (req, res) => {
         </div>
       `;
       await resend.emails.send({
-        from: 'Eunoia Learning <boletin@eunoialearning.com>',
+        from: senderEmail,
         to: [email],
         subject: '🎁 Tu Kit de Pictogramas Bienvenido está Listo',
         html: emailWrapper('Bienvenida', welcomeHtml)
@@ -194,7 +224,10 @@ app.post('/api/send-newsletter', async (req, res) => {
   }
 
   const htmlBody = mdToHtml(content);
-  const resendKey = process.env.RESEND_API_KEY;
+  
+  const config = readConfig();
+  const resendKey = config.resendApiKey || process.env.RESEND_API_KEY;
+  const senderEmail = config.senderEmail || 'Eunoia Learning <onboarding@resend.dev>';
 
   if (resendKey) {
     try {
@@ -210,7 +243,7 @@ app.post('/api/send-newsletter', async (req, res) => {
             ${htmlBody}
           `;
           await resend.emails.send({
-            from: 'Eunoia Learning <boletin@eunoialearning.com>',
+            from: senderEmail,
             to: [lead.email],
             subject: subject,
             html: emailWrapper(subject, personalizedContent)
@@ -228,7 +261,7 @@ app.post('/api/send-newsletter', async (req, res) => {
     }
   } else {
     // Elegant Offline Simulation (Demo Mode)
-    logs.push('⚠️ RESEND_API_KEY no configurado en el servidor backend.');
+    logs.push('⚠️ RESEND_API_KEY no configurado en el servidor backend ni en el panel de administrador.');
     logs.push('🎮 Ejecutando simulador de envío local para testing offline:');
     
     for (const lead of leads) {
@@ -236,10 +269,57 @@ app.post('/api/send-newsletter', async (req, res) => {
       logs.push(`   ✔ [Simulado] Entregado con éxito.`);
     }
     
-    logs.push('\n💡 Nota: Añade la variable RESEND_API_KEY en las variables de entorno para realizar envíos de correos electrónicos de verdad.');
+    logs.push('\n💡 Solución: Define tu RESEND_API_KEY en el panel de administrador para enviar correos de verdad.');
     logs.push('🎉 ¡Despacho simulado completado con éxito!');
     return res.json({ success: true, logs });
   }
+});
+
+// 4. Get active configuration (safe, masks API Key)
+app.get('/api/config', (req, res) => {
+  const config = readConfig();
+  const rawKey = config.resendApiKey || process.env.RESEND_API_KEY || '';
+  const maskedKey = rawKey 
+    ? `${rawKey.substring(0, 6)}****************${rawKey.substring(rawKey.length - 4)}` 
+    : '';
+  res.json({
+    hasApiKey: !!rawKey,
+    maskedApiKey: maskedKey,
+    senderEmail: config.senderEmail || 'Eunoia Learning <onboarding@resend.dev>'
+  });
+});
+
+// 5. Update configuration
+app.post('/api/config', (req, res) => {
+  const { resendApiKey, senderEmail } = req.body;
+  const config = readConfig();
+
+  if (resendApiKey !== undefined) {
+    const trimmed = resendApiKey.trim();
+    if (trimmed === '') {
+      delete config.resendApiKey;
+    } else if (!trimmed.includes('*')) {
+      config.resendApiKey = trimmed;
+    }
+  }
+
+  if (senderEmail !== undefined) {
+    config.senderEmail = senderEmail.trim() || 'Eunoia Learning <onboarding@resend.dev>';
+  }
+
+  writeConfig(config);
+
+  const rawKey = config.resendApiKey || process.env.RESEND_API_KEY || '';
+  const maskedKey = rawKey 
+    ? `${rawKey.substring(0, 6)}****************${rawKey.substring(rawKey.length - 4)}` 
+    : '';
+
+  res.json({
+    success: true,
+    hasApiKey: !!rawKey,
+    maskedApiKey: maskedKey,
+    senderEmail: config.senderEmail || 'Eunoia Learning <onboarding@resend.dev>'
+  });
 });
 
 // Handle serving SPA / assets

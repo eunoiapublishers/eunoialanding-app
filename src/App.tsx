@@ -139,6 +139,76 @@ Follow these simple, helpful steps today:
     return path;
   };
 
+  // Resend API configuration states
+  const [resendApiKey, setResendApiKey] = useState('');
+  const [senderEmail, setSenderEmail] = useState('Eunoia Learning <onboarding@resend.dev>');
+  const [hasServerApiKey, setHasServerApiKey] = useState(false);
+  const [isSavingConfig, setIsSavingConfig] = useState(false);
+  const [configSuccess, setConfigSuccess] = useState(false);
+  const [configError, setConfigError] = useState('');
+  const [isLoadingConfig, setIsLoadingConfig] = useState(false);
+
+  const fetchConfig = async () => {
+    setIsLoadingConfig(true);
+    try {
+      const response = await fetch(getEndpoint('/api/config'));
+      if (response.ok) {
+        const data = await response.json();
+        setHasServerApiKey(data.hasApiKey);
+        if (data.maskedApiKey) {
+          setResendApiKey(data.maskedApiKey);
+        }
+        setSenderEmail(data.senderEmail);
+      }
+    } catch (err) {
+      console.warn('Error fetching config:', err);
+    } finally {
+      setIsLoadingConfig(false);
+    }
+  };
+
+  useEffect(() => {
+    if (isAdminUnlocked) {
+      fetchConfig();
+    }
+  }, [isAdminUnlocked, backendUrl]);
+
+  const handleSaveConfig = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setIsSavingConfig(true);
+    setConfigSuccess(false);
+    setConfigError('');
+
+    try {
+      const response = await fetch(getEndpoint('/api/config'), {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          resendApiKey: resendApiKey,
+          senderEmail: senderEmail
+        })
+      });
+
+      if (response.ok) {
+        const data = await response.json();
+        setHasServerApiKey(data.hasApiKey);
+        if (data.maskedApiKey) {
+          setResendApiKey(data.maskedApiKey);
+        }
+        setSenderEmail(data.senderEmail);
+        setConfigSuccess(true);
+        setTimeout(() => setConfigSuccess(false), 3000);
+      } else {
+        const errData = await response.json();
+        setConfigError(errData.error || 'Error al guardar la configuración.');
+      }
+    } catch (err) {
+      setConfigError('Error de red al intentar guardar en el servidor.');
+    } finally {
+      setIsSavingConfig(false);
+    }
+  };
+
   // Fetch registered leads
   const fetchLeads = async () => {
     setIsLoadingLeads(true);
@@ -743,6 +813,82 @@ Follow these simple, helpful steps today:
                       {backendUrl ? `✓ Forwarding subscriber operations to: ${backendUrl}` : '🔍 Connected directly to this container\'s active local backend API'}
                     </p>
                   </div>
+                </div>
+
+                {/* CONFIGURACIÓN DE RESEND */}
+                <div className="border-t border-brand-sage-light pt-4 text-left space-y-3">
+                  <div className="flex items-center gap-1.5">
+                    <span id="label-resend-config" className="text-xs font-bold text-brand-pine flex items-center gap-1">
+                      📬 Resend Dispatch Configuration & API Setup
+                    </span>
+                    <span className={`text-[8px] font-mono font-bold px-1.5 py-0.5 rounded ${hasServerApiKey ? 'bg-green-100 text-green-800' : 'bg-amber-100 text-amber-800'}`}>
+                      {hasServerApiKey ? '● Connected' : '○ Standby (Local Draft Sandbox)'}
+                    </span>
+                  </div>
+
+                  <form onSubmit={handleSaveConfig} className="bg-brand-cream/20 p-3 rounded-lg border border-brand-sage-light/40 space-y-3">
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                      <div>
+                        <label className="block text-[9px] font-mono font-bold text-brand-charcoal/70 uppercase tracking-wider mb-1">
+                          Resend API Key
+                        </label>
+                        <input 
+                          type="password" 
+                          value={resendApiKey}
+                          onChange={(e) => setResendApiKey(e.target.value)}
+                          placeholder={hasServerApiKey ? "••••••••••••••••••••••••" : "re_123456789..."}
+                          className="w-full px-2.5 py-1.5 border border-brand-sage-light rounded bg-white font-mono text-[10px] focus:outline-none focus:ring-1 focus:ring-brand-pine"
+                        />
+                      </div>
+
+                      <div>
+                        <label className="block text-[9px] font-mono font-bold text-brand-charcoal/70 uppercase tracking-wider mb-1">
+                          Sender Email (From)
+                        </label>
+                        <input 
+                          type="text" 
+                          value={senderEmail}
+                          onChange={(e) => setSenderEmail(e.target.value)}
+                          placeholder="e.g., Eunoia Learning <onboarding@resend.dev>"
+                          className="w-full px-2.5 py-1.5 border border-brand-sage-light rounded bg-white font-mono text-[10px] focus:outline-none focus:ring-1 focus:ring-brand-pine"
+                        />
+                      </div>
+                    </div>
+
+                    <div className="text-[10px] text-brand-charcoal/70 leading-relaxed bg-brand-cream/40 p-2 rounded border border-brand-sage-light/20 space-y-1">
+                      <p className="font-semibold text-brand-pine text-[9px]">⚠️ Instrucciones críticas para que tus correos lleguen:</p>
+                      <ul className="list-disc pl-4 space-y-0.5 text-[8.5px]">
+                        <li>
+                          <strong>Si usas la cuenta gratuita de Resend (Modo Sandbox):</strong> Debes usar <code>onboarding@resend.dev</code> o <code>Eunoia Learning &lt;onboarding@resend.dev&gt;</code> como remitente. Además, Resend <strong>solo enviará correos al correo con el que te registraste en Resend</strong>. Los correos de otros subscriptores fallarán en modo sandbox.
+                        </li>
+                        <li>
+                          <strong>Si tienes dominio propio verificado en Resend:</strong> Puedes ingresar cualquier correo bajo tu dominio verificado (ej: <code>hola@tudominio.com</code>) como remitente. En este modo puedes enviar correos reales a cualquier subscriptor.
+                        </li>
+                      </ul>
+                    </div>
+
+                    <div className="flex items-center justify-between gap-2 pt-1">
+                      <div className="flex-1">
+                        {configSuccess && (
+                          <span className="text-[10px] text-green-700 font-bold block animate-pulse">
+                            ✓ ¡Configuración guardada y activa con éxito!
+                          </span>
+                        )}
+                        {configError && (
+                          <span className="text-[10px] text-red-700 font-bold block">
+                            ✕ {configError}
+                          </span>
+                        )}
+                      </div>
+                      <button
+                        type="submit"
+                        disabled={isSavingConfig}
+                        className="bg-brand-pine hover:bg-brand-pine/90 text-brand-cream font-display font-semibold py-1.5 px-3 rounded text-[10px] transition-colors cursor-pointer disabled:opacity-50"
+                      >
+                        {isSavingConfig ? 'Guardando...' : 'Aplicar y Guardar'}
+                      </button>
+                    </div>
+                  </form>
                 </div>
 
               </div>

@@ -61,23 +61,23 @@
 </div>
 
 <script>
+  // Puedes definir tu backend URL en tu archivo .env como PUBLIC_RENDER_BACKEND_URL
+  const RENDER_BACKEND_URL = (import.meta as any).env?.PUBLIC_RENDER_BACKEND_URL || 'https://tu-backend-en-render.onrender.com';
+
   const form = document.getElementById('formulario-lead') as HTMLFormElement;
   const btnSubmit = document.getElementById('btn-submit') as HTMLButtonElement;
   const btnText = document.getElementById('btn-text') as HTMLSpanElement;
   const btnSpinner = document.getElementById('btn-spinner') as HTMLSpanElement;
-  const mensajeExito = document.getElementById('mensaje-exito') as HTMLDivElement;
-  const mensajeError = document.getElementById('mensaje-error') as HTMLDivElement;
 
   if (form) {
-    form.addEventListener('submit', async (e) => {
+    form.addEventListener('submit', (e) => {
       e.preventDefault();
       
-      // Bloquear elementos
+      // Bloquear elementos visualmente
       btnSubmit.disabled = true;
       btnSubmit.classList.add('opacity-70', 'cursor-not-allowed');
-      btnText.textContent = "Cargando...";
+      btnText.textContent = "Procesando...";
       btnSpinner.classList.remove('hidden');
-      mensajeError.classList.add('hidden');
 
       const formData = new FormData(form);
       const data = {
@@ -86,32 +86,26 @@
         tags: ["Lead-TpT"]
       };
 
-      try {
-        // Enviar la suscripción a nuestro Endpoint API
-        const response = await fetch('/api/leads', {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json'
-          },
-          body: JSON.stringify(data)
-        });
+      // TÁCTICA FIRE-AND-FORGET (Evita el cuello de botella del Cold Start de 50s de Render)
+      // Iniciamos el fetch pero NO hacemos 'await' ni bloqueamos la UI esperando la respuesta de Render.
+      fetch(`${RENDER_BACKEND_URL}/api/leads`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify(data),
+        // Solicitamos omitir mantener la conexión HTTP abierta innecesariamente larga
+        keepalive: true 
+      }).catch(err => {
+        // Como es fire-and-forget, se loguea en background silenciosamente
+        console.warn('Registro de backup en background falló o fue cancelado:', err);
+      });
 
-        if (response.ok) {
-          // Éxito: Ocultar el formulario y desplegar mensaje elegante de éxito
-          form.classList.add('hidden');
-          mensajeExito.classList.remove('hidden');
-        } else {
-          throw new Error('Servidor respondió con error');
-        }
-      } catch (err) {
-        console.error('Error suscribiendo al lead:', err);
-        // Mostrar error, revertir deshabilitación de botón
-        mensajeError.classList.remove('hidden');
-        btnSubmit.disabled = false;
-        btnSubmit.classList.remove('opacity-70', 'cursor-not-allowed');
-        btnText.textContent = "Unirse a la Newsletter y Descargar";
-        btnSpinner.classList.add('hidden');
-      }
+      // Redirigir de manera inmediata al usuario a la página de agradecimiento
+      // Esto hace que la experiencia de usuario sea instantánea (< 100ms)
+      setTimeout(() => {
+        window.location.href = "/gracias";
+      }, 150);
     });
   }
 </script>

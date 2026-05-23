@@ -140,8 +140,12 @@ Follow these simple, helpful steps today:
   };
 
   // Resend API configuration states
-  const [resendApiKey, setResendApiKey] = useState('');
-  const [senderEmail, setSenderEmail] = useState('Eunoia Learning <onboarding@resend.dev>');
+  const [resendApiKey, setResendApiKey] = useState(() => {
+    return localStorage.getItem('eunoia_resend_api_key') || '';
+  });
+  const [senderEmail, setSenderEmail] = useState(() => {
+    return localStorage.getItem('eunoia_sender_email') || 'Eunoia Learning <onboarding@resend.dev>';
+  });
   const [hasServerApiKey, setHasServerApiKey] = useState(false);
   const [isSavingConfig, setIsSavingConfig] = useState(false);
   const [configSuccess, setConfigSuccess] = useState(false);
@@ -155,10 +159,18 @@ Follow these simple, helpful steps today:
       if (response.ok) {
         const data = await response.json();
         setHasServerApiKey(data.hasApiKey);
-        if (data.maskedApiKey) {
+        if (data.hasApiKey && data.maskedApiKey) {
           setResendApiKey(data.maskedApiKey);
+        } else {
+          // Fallback to local storage if server does not have it configured yet
+          const savedKey = localStorage.getItem('eunoia_resend_api_key');
+          if (savedKey) setResendApiKey(savedKey);
         }
-        setSenderEmail(data.senderEmail);
+        
+        if (data.senderEmail) {
+          setSenderEmail(data.senderEmail);
+          localStorage.setItem('eunoia_sender_email', data.senderEmail);
+        }
       }
     } catch (err) {
       console.warn('Error fetching config:', err);
@@ -194,8 +206,15 @@ Follow these simple, helpful steps today:
         setHasServerApiKey(data.hasApiKey);
         if (data.maskedApiKey) {
           setResendApiKey(data.maskedApiKey);
+          // Only save to local storage if it's the real unmasked token
+          if (resendApiKey && !resendApiKey.includes('*')) {
+            localStorage.setItem('eunoia_resend_api_key', resendApiKey);
+          }
         }
-        setSenderEmail(data.senderEmail);
+        if (data.senderEmail) {
+          setSenderEmail(data.senderEmail);
+          localStorage.setItem('eunoia_sender_email', data.senderEmail);
+        }
         setConfigSuccess(true);
         setTimeout(() => setConfigSuccess(false), 3000);
       } else {
